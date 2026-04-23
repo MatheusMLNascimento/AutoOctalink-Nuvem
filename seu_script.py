@@ -1,4 +1,4 @@
-import sys
+
 import os
 import pandas as pd
 import tkinter as tk
@@ -7,10 +7,8 @@ from datetime import datetime
 import json
 from openpyxl.styles import Alignment
 
-# Bibliotecas de Nuvem
 try:
     import gspread
-    from oauth2client.service_account import ServiceAccountCredentials
 except ImportError:
     gspread = None
 
@@ -21,17 +19,12 @@ def carregar_config():
         "historicos": ["SAIDA USO ECO"], 
         "codigos_mi": ["S500"],
         "tutorial_ativo": True,
-        "cloud": {
-            "spreadsheet_id": "",
-            "worksheet_name": "Sheet1",
-            "creds_json": "" # O conteúdo do JSON colado aqui
-        }
+        "cloud": {"spreadsheet_id": "", "worksheet_name": "Sheet1", "creds_json": ""}
     }
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                # Garante que chaves novas existam em arquivos antigos
                 for key in default:
                     if key not in data: data[key] = default[key]
                 return data
@@ -47,325 +40,340 @@ def salvar_config(config):
 class OctalinkApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Octalink Automator Pro + Cloud")
-        self.root.geometry("750x850")
+        self.root.title("Octalink Automator Pro - V3.0")
+        self.root.geometry("800x900")
         self.config = carregar_config()
         self.dados_agrupados = None
         self.setup_ui()
-        
-        if self.config.get("tutorial_ativo"):
-            self.exibir_tutorial()
+        if self.config.get("tutorial_ativo"): self.exibir_tutorial()
 
     def exibir_tutorial(self):
         win = tk.Toplevel(self.root)
-        win.title("Guia de Configuração Rápida")
-        win.geometry("550x500")
+        win.title("📖 MANUAL DE CONFIGURAÇÃO (PASSO A PASSO)")
+        win.geometry("650x700")
+        win.attributes("-topmost", True)
+        win.grab_set()
         
-        # --- CONFIGURAÇÃO DE DESTAQUE TOTAL ---
-        win.attributes("-topmost", True) # Fica por cima de TODAS as janelas do Windows
-        win.grab_set()                  # Bloqueia cliques na tela principal do App
-        
-        win.configure(padx=20, pady=20)
-        
-        texto_guia = (
-            "👋 BEM-VINDO!\n\n"
-            "Este guia é obrigatório para a primeira configuração:\n\n"
-            "1. CONEXÃO:\n"
-            "   Cole o ID da planilha e o texto do JSON no topo.\n\n"
-            "2. VALIDAÇÃO:\n"
-            "   Clique no botão de 'Validar Conexão' até ele ficar VERDE.\n\n"
-            "3. OPERAÇÃO:\n"
-            "   Carregue o TXT e clique em 'Finalizar'.\n"
+        # Container com scroll para caber toda a explicação
+        canvas = tk.Canvas(win)
+        scrollbar = ttk.Scrollbar(win, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
 
-        tk.Label(win, text=texto_guia, justify="left", font=("Arial", 10, "bold"), wraplength=500).pack()
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        texto_tutorial = (
+            "🚀 BEM-VINDO AO SEU AUTOMADOR OCTALINK PRO!\n"
+            "Siga rigorosamente estes passos para ativar a Nuvem:\n\n"
+            "------------------------------------------------------------------\n"
+            "1️⃣ PASSO: OBTER A CHAVE (GOOGLE CLOUD)\n"
+            "------------------------------------------------------------------\n"
+            "1. Acesse: ://google.com\n"
+            "2. No topo, crie um 'Novo Projeto'.\n"
+            "3. No menu lateral, vá em 'APIs e Serviços' > 'Biblioteca'.\n"
+            "4. Pesquise e ATIVE duas coisas: 'Google Sheets API' e 'Google Drive API'.\n"
+            "5. Vá em 'Credenciais' > '+ Criar Credenciais' > 'Conta de Serviço'.\n"
+            "6. Dê um nome qualquer e clique em 'Concluir'.\n"
+            "7. Na lista de e-mails que aparecer, clique no e-mail azul que você criou.\n"
+            "8. Vá na aba 'CHAVES' > 'Adicionar Chave' > 'Criar nova chave' > Escolha 'JSON'.\n"
+            "9. Um arquivo será baixado. NÃO ABRA ELE, vamos usá-lo no Passo 2.\n\n"
+
+            "------------------------------------------------------------------\n"
+            "2️⃣ PASSO: CONFIGURAR O APLICATIVO\n"
+            "------------------------------------------------------------------\n"
+            "1. No App, clique em '📂 1. CARREGAR ARQUIVO JSON'.\n"
+            "2. Escolha o arquivo que você baixou no passo anterior.\n"
+            "3. O App mostrará um e-mail longo na tela. COPIE ESSE E-MAIL.\n\n"
+
+            "------------------------------------------------------------------\n"
+            "3️⃣ PASSO: DAR PERMISSÃO NA PLANILHA\n"
+            "------------------------------------------------------------------\n"
+            "1. Abra a sua Planilha do Google no seu navegador.\n"
+            "2. Clique no botão azul 'COMPARTILHAR' no canto superior direito.\n"
+            "3. Cole o e-mail que o App te deu e coloque-o como 'EDITOR'.\n"
+            "4. Clique em 'Enviar'. (O bot não precisa aceitar nada, já está liberado!)\n\n"
+
+            "------------------------------------------------------------------\n"
+            "4️⃣ PASSO: O ID DA PLANILHA\n"
+            "------------------------------------------------------------------\n"
+            "1. Olhe para o endereço (URL) da sua planilha no navegador.\n"
+            "2. Copie a URL e cole no campo 'Link da Planilha' no app.\n"
+            "3. Clique em '✅ VALIDAR CONEXÃO'. Se ficar VERDE, está pronto!\n\n"
+            "⚠️ DICA: Se mudar de planilha, basta trocar o link e Compartilhar de novo!"
+        )
+
+        tk.Label(scrollable_frame, text=texto_tutorial, justify="left", font=("Arial", 10), 
+                 wraplength=580, padx=20, pady=20).pack()
 
         var_tutorial = tk.BooleanVar(value=True)
-        tk.Checkbutton(win, text="Mostrar este guia ao iniciar o App", variable=var_tutorial).pack(pady=20)
-
-        def finalizar():
+        tk.Checkbutton(scrollable_frame, text="Continuar mostrando este guia ao abrir o App", 
+                       variable=var_tutorial, font=("Arial", 9, "bold")).pack(pady=10)
+        
+        def fechar():
             self.config["tutorial_ativo"] = var_tutorial.get()
             salvar_config(self.config)
             win.destroy()
+        
+        tk.Button(scrollable_frame, text="ENTENDI TUDO, VAMOS TRABALHAR!", bg="#4CAF50", fg="white", 
+                  font=("Arial", 11, "bold"), command=fechar, pady=12, padx=30).pack(pady=20)
 
-        tk.Button(win, text="ENTENDI, PODE LIBERAR O APP", bg="#4CAF50", fg="white", 
-                  font=("Arial", 10, "bold"), command=finalizar, pady=10, padx=20).pack()
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
 
 
     def setup_ui(self):
         self.main_frame = tk.Frame(self.root)
         self.main_frame.pack(fill="both", expand=True, padx=20, pady=10)
 
-        # Cabeçalho
-        tk.Label(self.main_frame, text="OCTALINK AUTOMATOR PRO", font=("Arial", 14, "bold"), fg="#1565C0").pack(pady=10)
+        # --- SEÇÃO NUVEM ---
+        cloud_frame = tk.LabelFrame(self.main_frame, text="⚙️ CONFIGURAÇÃO DA NUVEM (Fazer uma única vez)", fg="red", font=("Arial", 9, "bold"))
+        cloud_frame.pack(fill="x", pady=5)
 
-        # --- CONTAINER NUVEM REFORMULADO ---
-        cloud_frame = tk.LabelFrame(self.main_frame, text="⚙️ CONFIGURAÇÃO ÚNICA DA NUVEM", fg="#D32F2F", font=("Arial", 9, "bold"))
-        cloud_frame.pack(fill="x", pady=5, padx=5)
+        # Botão para carregar arquivo JSON
+        tk.Button(cloud_frame, text="📂 1. CARREGAR ARQUIVO JSON", command=self.importar_json_file, bg="#607D8B", fg="white").grid(row=0, column=0, columnspan=2, pady=5, padx=5, sticky="ew")
 
-        # ID da Planilha com Ajuda
-        tk.Label(cloud_frame, text="1. ID da Planilha Google:", font=("Arial", 8, "bold")).grid(row=0, column=0, sticky="w", padx=5)
-        self.ent_sheet_id = tk.Entry(cloud_frame, width=55, fg="grey")
-        self.ent_sheet_id.insert(0, self.config["cloud"]["spreadsheet_id"] or "Cole aqui o código longo da URL da sua planilha")
-        self.ent_sheet_id.grid(row=0, column=1, pady=5, padx=5)
-        self.ent_sheet_id.bind("<FocusIn>", lambda e: self.on_entry_click(self.ent_sheet_id, "Cole aqui"))
+        tk.Label(cloud_frame, text="2. Link/ID da Planilha:").grid(row=1, column=0, padx=5, sticky="w")
+        self.ent_sheet_id = tk.Entry(cloud_frame, width=50)
+        self.ent_sheet_id.insert(0, self.config["cloud"]["spreadsheet_id"])
+        self.ent_sheet_id.grid(row=1, column=1, pady=5, padx=5)
 
-        # JSON com Ajuda
-        tk.Label(cloud_frame, text="2. Conteúdo do JSON:", font=("Arial", 8, "bold")).grid(row=1, column=0, sticky="w", padx=5)
-        self.ent_json_creds = tk.Entry(cloud_frame, width=55, show="*", fg="grey")
-        self.ent_json_creds.insert(0, self.config["cloud"]["creds_json"] or "Abra o arquivo baixado no bloco de notas e cole o texto todo aqui")
-        self.ent_json_creds.grid(row=1, column=1, pady=5, padx=5)
-        self.ent_json_creds.bind("<FocusIn>", lambda e: self.on_entry_click(self.ent_json_creds, "Abra o arquivo"))
+        tk.Label(cloud_frame, text="3. Nome da Aba:").grid(row=2, column=0, padx=5, sticky="w")
+        self.ent_sheet_name = tk.Entry(cloud_frame, width=50)
+        self.ent_sheet_name.insert(0, self.config["cloud"]["worksheet_name"])
+        self.ent_sheet_name.grid(row=2, column=1, pady=5, padx=5)
 
-        # Botão de Teste (Crucial para o usuário não errar)
-        self.btn_test_cloud = tk.Button(cloud_frame, text="✅ Validar Dados da Nuvem", bg="#607D8B", fg="white", 
-                                        font=("Arial", 8, "bold"), command=self.testar_conexao_imediata)
-        self.btn_test_cloud.grid(row=2, column=1, sticky="e", pady=5, padx=5)
-        # --- CONTAINER OPERACIONAL (Onde o usuário foca no dia a dia) ---
-        op_frame = tk.Frame(self.main_frame)
+        self.btn_test_cloud = tk.Button(cloud_frame, text="✅ VALIDAR CONEXÃO", bg="#2196F3", fg="white", command=self.testar_conexao)
+        self.btn_test_cloud.grid(row=3, column=1, sticky="e", padx=5, pady=5)
+
+        # --- SEÇÃO OPERACIONAL ---
+        op_frame = tk.LabelFrame(self.main_frame, text="🚀 OPERAÇÃO DIÁRIA", font=("Arial", 10, "bold"))
         op_frame.pack(fill="x", pady=10)
 
-        # Seleção de Histórico
-        tk.Label(op_frame, text="O que você está fazendo? (Histórico)", font=("Arial", 9, "bold")).pack()
+        tk.Label(op_frame, text="Histórico:").pack()
         self.cb_hist = ttk.Combobox(op_frame, values=self.config["historicos"] + ["Outro..."], width=50, state="readonly")
-        self.cb_hist.pack(pady=5)
+        self.cb_hist.pack(pady=2)
         self.cb_hist.bind("<<ComboboxSelected>>", lambda e: self.toggle_outro(self.cb_hist, self.ent_outro_hist))
         self.cb_hist.current(0)
-        
-        self.ent_outro_hist = tk.Entry(op_frame, width=53, font=("Arial", 9, "italic"), fg="blue")
-        # (Lógica de toggle_outro e placeholder se mantém)
+        self.ent_outro_hist = tk.Entry(op_frame, width=53, font=("Arial", 9, "italic"))
 
-        # Botão de Carregar (Impossível de não ver)
-        self.btn_load = tk.Button(self.main_frame, text="1. SELECIONAR ARQUIVO TXT", bg="#2196F3", fg="white", 
-                                  font=("Arial", 11, "bold"), command=self.ler_txt, height=2)
+        tk.Label(op_frame, text="Código MI:").pack(pady=(5,0))
+        self.cb_mi = ttk.Combobox(op_frame, values=self.config["codigos_mi"] + ["Outro..."], width=50, state="readonly")
+        self.cb_mi.pack(pady=2)
+        self.cb_mi.bind("<<ComboboxSelected>>", lambda e: self.toggle_outro(self.cb_mi, self.ent_outro_mi))
+        self.cb_mi.current(0)
+        self.ent_outro_mi = tk.Entry(op_frame, width=53, font=("Arial", 9, "italic"))
+
+        self.btn_load = tk.Button(self.main_frame, text="📁 SELECIONAR ARQUIVO TXT", bg="#FF9800", fg="white", font=("Arial", 10, "bold"), command=self.ler_txt, height=2)
         self.btn_load.pack(fill="x", pady=10)
 
-        # Preview com instrução
-        tk.Label(self.main_frame, text="👀 Verifique se os dados abaixo estão corretos:", font=("Arial", 8, "italic")).pack()
-        self.txt_preview = tk.Text(self.main_frame, height=10, width=85, state="disabled", font=("Consolas", 8), bg="#EEE")
+        # Preview aumentado
+        self.txt_preview = tk.Text(self.main_frame, height=18, width=90, state="disabled", font=("Consolas", 8), bg="#F5F5F5")
         self.txt_preview.pack(pady=5)
+        self.txt_preview.tag_configure("erro", foreground="red", font=("Consolas", 9, "bold"))
+        self.txt_preview.tag_configure("header", foreground="blue", font=("Consolas", 8, "bold"))
 
-        # Botão Final
         self.check_cloud = tk.BooleanVar(value=True)
-        tk.Checkbutton(self.main_frame, text="Também salvar na Planilha Online", variable=self.check_cloud, font=("Arial", 9, "bold")).pack()
+        tk.Checkbutton(self.main_frame, text="ENVIAR PARA PLANILHA ONLINE", variable=self.check_cloud, font=("Arial", 10, "bold")).pack()
 
-        self.btn_gerar = tk.Button(self.main_frame, text="2. CONCLUIR E GERAR TUDO", bg="#4CAF50", fg="white", 
-                                   font=("Arial", 12, "bold"), state="disabled", command=self.fluxo_final, height=2)
+        self.btn_gerar = tk.Button(self.main_frame, text="🚀 FINALIZAR E GERAR TUDO", bg="#4CAF50", fg="white", font=("Arial", 12, "bold"), state="disabled", command=self.fluxo_final, height=2)
         self.btn_gerar.pack(fill="x", pady=10)
 
-    def on_entry_click(self, entry, text_check):
-        """Limpa o texto de ajuda quando o usuário clica no campo"""
-        if text_check in entry.get():
-            entry.delete(0, tk.END)
-            entry.config(fg="black", show="" if "ID" in str(entry) else "*")
-
-    def testar_conexao_imediata(self):
-        """Tenta conectar na hora para dar feedback ao usuário"""
-        try:
-            # Pega os dados atuais da tela
-            id_plani = self.ent_sheet_id.get().strip()
-            json_text = self.ent_json_creds.get().strip()
-            
-            if "Cole aqui" in id_plani or "Abra o arquivo" in json_text:
-                raise ValueError("Você precisa preencher os campos com seus dados reais primeiro!")
-
-            # Tenta autenticar
-            scope = ["https://google.com", "https://googleapis.com"]
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(json.loads(json_text), scope)
-            client = gspread.authorize(creds)
-            
-            # Tenta abrir a planilha
-            client.open_by_key(id_plani)
-            
-            messagebox.showinfo("Sucesso!", "CONEXÃO ESTABELECIDA!\n\nO app conseguiu acessar sua planilha Google com sucesso.")
-            self.btn_test_cloud.config(bg="#4CAF50", text="CONECTADO")
-            
-            # Já salva nas configs para não perder
-            self.config["cloud"]["spreadsheet_id"] = id_plani
-            self.config["cloud"]["creds_json"] = json_text
-            salvar_config(self.config)
-
-        except Exception as e:
-            msg_erro = str(e)
-            if "permission_denied" in msg_erro.lower():
-                res = "Erro de Permissão: Você esqueceu de compartilhar a planilha com o e-mail que está dentro do JSON!"
-            elif "not found" in msg_erro.lower():
-                res = "Erro de ID: Esse ID de planilha não existe. Copie novamente da URL."
-            else:
-                res = f"Erro Técnico: Verifique se colou o JSON corretamente.\n\nDetalhe: {e}"
-            
-            messagebox.showerror("Falha na Configuração", res)
-            self.btn_test_cloud.config(bg="#F44336", text="FALHA NA CONEXÃO")
-
     def toggle_outro(self, combo, entry):
-        if combo.get() == "Outro...": entry.pack(pady=2)
+        if combo.get() == "Outro...": entry.pack(pady=2); entry.focus()
         else: entry.pack_forget()
 
-    def ler_txt(self):
+    def importar_json_file(self):
+        path = filedialog.askopenfilename(filetypes=[("JSON", "*.json")])
+        if not path: return
         try:
-            path = filedialog.askopenfilename(filetypes=[("Arquivos de Texto", "*.txt")])
-            if not path: return
+            with open(path, 'r', encoding='utf-8') as f:
+                json_data = json.load(f)
+                email_api = json_data.get("client_email", "")
+                self.config["cloud"]["creds_json"] = json.dumps(json_data)
+                
+                # Pop-up impossível de ignorar com o e-mail
+                win_email = tk.Toplevel(self.root)
+                win_email.title("COPIE ESTE E-MAIL")
+                win_email.attributes("-topmost", True)
+                tk.Label(win_email, text="QUASE LÁ! Agora compartilhe sua planilha com:", font=("Arial", 10)).pack(pady=10, padx=20)
+                
+                ent_mail = tk.Entry(win_email, width=50, justify="center", font=("Arial", 10, "bold"), fg="blue")
+                ent_mail.insert(0, email_api)
+                ent_mail.pack(pady=10, padx=20)
+                tk.Label(win_email, text="(Dê permissão de EDITOR na planilha Google)", font=("Arial", 8, "italic")).pack()
+                
+                tk.Button(win_email, text="OK, COPIEI!", command=win_email.destroy, bg="#2196F3", fg="white").pack(pady=15)
+                
+        except Exception as e:
+            messagebox.showerror("Erro", f"Arquivo JSON inválido: {e}")
 
+    def extrair_id(self, texto):
+        """Extrai o ID da planilha se o usuário colar a URL inteira do navegador"""
+        import re
+        match = re.search(r"/d/([a-zA-Z0-9-_]+)", texto)
+        return match.group(1) if match else texto.strip()
+
+
+    def ler_txt(self):
+        path = filedialog.askopenfilename(filetypes=[("Arquivos de Texto", "*.txt")])
+        if not path: return
+        try:
             with open(path, 'r', encoding='utf-8') as f:
                 linhas = [l.strip() for l in f.readlines() if l.strip()]
-
-            raw_data = []
+            
+            raw = []
             i = 0
             self.txt_preview.config(state="normal")
             self.txt_preview.delete(1.0, tk.END)
-
+            
             while i < len(linhas):
                 try:
-                    num_ln = i + 1
-                    # Validação de Bloco
                     p_item = linhas[i].upper().split(' - ')
-                    if len(p_item) < 2: raise ValueError(f"Linha {num_ln}: Formato CÓD-NOME inválido.")
-                    
+                    if len(p_item) < 2: raise ValueError(f"Linha {i+1}: Formato Código-Nome inválido.")
                     p_alm = linhas[i+1].upper().split(' - ')
-                    
-                    # QTD Lógica (Data ou Direto)
-                    idx_qtd = i + 4 if (i+3 < len(linhas) and "/" in linhas[i+3]) else i + 3
-                    if idx_qtd >= len(linhas): raise ValueError(f"Linha {num_ln}: Dados incompletos.")
-                    
-                    raw_data.append({
-                        "Item": p_item[0].strip(), 
-                        "Desc": p_item[1].strip(), 
-                        "Almox": p_alm[0].strip(), 
-                        "Qtd": int(linhas[idx_qtd])
-                    })
-                    i = idx_qtd + 1
+                    idx_q = i+4 if (i+3 < len(linhas) and "/" in linhas[i+3]) else i+3
+                    raw.append({"Item": p_item[0].strip(), "Desc": p_item[1].strip(), "Almox": p_alm[0].strip(), "Qtd": int(linhas[idx_q])})
+                    i = idx_q + 1
                 except Exception as e:
-                    self.txt_preview.insert(tk.END, f"❌ ERRO: {str(e)}\n", "erro")
-                    self.btn_gerar.config(state="disabled")
+                    self.txt_preview.insert(tk.END, f"❌ ERRO: {e}\n", "erro")
+                    messagebox.showerror("Ação Necessária", f"Erro no TXT: {e}")
                     return
-
-            df = pd.DataFrame(raw_data)
-            self.dados_agrupados = df.groupby(['Item', 'Desc', 'Almox']).agg({'Qtd': 'sum', 'Item': 'count'}).rename(columns={'Item': 'Pacotes'}).reset_index()
             
-            # Renderizar Preview
-            self.txt_preview.insert(tk.END, f"{'PRODUTO':<25} | {'CÓD':<10} | {'ALM':<5} | {'QTD':<5}\n", "header")
+            self.dados_agrupados = pd.DataFrame(raw).groupby(['Item', 'Desc', 'Almox']).agg({'Qtd':'sum','Item':'count'}).rename(columns={'Item':'Pacotes'}).reset_index()
+            
+            self.txt_preview.insert(tk.END, f"{'PRODUTO':<30} | {'CÓD':<12} | {'QTD':<5}\n", "header")
+            self.txt_preview.insert(tk.END, "-"*55 + "\n")
             for _, r in self.dados_agrupados.iterrows():
-                n = (r['Desc'][:23] + "..") if len(r['Desc']) > 23 else r['Desc']
-                self.txt_preview.insert(tk.END, f"{n:<25} | {r['Item']:<10} | {r['Almox']:<5} | {r['Qtd']:<5}\n")
+                self.txt_preview.insert(tk.END, f"{r['Desc'][:28]:<30} | {r['Item']:<12} | {r['Qtd']}\n")
             
-            self.txt_preview.config(state="disabled")
             self.btn_gerar.config(state="normal")
-
+            self.txt_preview.config(state="disabled")
         except Exception as e:
-            messagebox.showerror("Erro Crítico", f"Falha ao carregar TXT: {e}")
-            
-    def obter_campos_finais(self):
-        """Captura os valores atuais da UI (Combos ou Entradas 'Outro')"""
-        h = self.ent_outro_hist.get().upper().strip() if self.cb_hist.get() == "Outro..." else self.cb_hist.get()
-        m = self.ent_outro_mi.get().upper().strip() if self.cb_mi.get() == "Outro..." else self.cb_mi.get()
-        
-        if not h or "Digite" in h or not m or "Digite" in m:
-            return None
-        return {"hist": h, "mi": m}
-
-    def salvar_novas_configuracoes(self, h, m):
-        """Atualiza o JSON com novos históricos e dados de nuvem"""
-        if self.cb_hist.get() == "Outro..." and h not in self.config["historicos"]:
-            self.config["historicos"].append(h)
-        if self.cb_mi.get() == "Outro..." and m not in self.config["codigos_mi"]:
-            self.config["codigos_mi"].append(m)
-            
-        self.config["cloud"]["spreadsheet_id"] = self.ent_sheet_id.get().strip()
-        self.config["cloud"]["worksheet_name"] = self.ent_sheet_name.get().strip()
-        self.config["cloud"]["creds_json"] = self.ent_json_creds.get().strip()
-        salvar_config(self.config)
+            messagebox.showerror("Erro Crítico", str(e))
 
     def fluxo_final(self):
-        """Gerencia a execução local e nuvem com Try/Except em camadas"""
-        campos = self.obter_campos_finais()
-        if not campos:
-            messagebox.showwarning("Aviso", "Preencha os campos de Histórico/MI corretamente.")
-            return
-
-        # Salva o estado atual das configurações
-        self.salvar_novas_configuracoes(campos['hist'], campos['mi'])
-
-        status_msg = []
+        h = self.ent_outro_hist.get().upper() if self.cb_hist.get() == "Outro..." else self.cb_hist.get()
+        m = self.ent_outro_mi.get().upper() if self.cb_mi.get() == "Outro..." else self.cb_mi.get()
+        id_plani = self.extrair_id(self.ent_sheet_id.get())
         
-        # 1. Tentar Envio para Nuvem (se habilitado)
+        self.config["cloud"]["spreadsheet_id"] = id_plani
+        self.config["cloud"]["worksheet_name"] = self.ent_sheet_name.get().strip()
+        salvar_config(self.config)
+
+        # --- ENVIO NUVEM (Com 10 Colunas - Inclui Nome) ---
         if self.check_cloud.get():
             try:
-                self.enviar_para_nuvem(campos['hist'], campos['mi'])
-                status_msg.append("✅ Dados enviados para a Nuvem!")
-            except Exception as e:
-                status_msg.append(f"❌ Erro Nuvem: {str(e)}")
-                messagebox.showerror("Falha na Nuvem", f"Erro ao conectar com Google Sheets:\n{e}")
+                # Login moderno
+                creds_dict = json.loads(self.config["cloud"]["creds_json"])
+                client = gspread.service_account_from_dict(creds_dict)
+                
+                # Acesso à aba
+                sheet = client.open_by_key(id_plani).worksheet(self.config["cloud"]["worksheet_name"])
+                
+                data_h = datetime.now().strftime('%d/%m/%Y')
+                
+                # Montagem das 10 colunas (A até J)
+                envio = [[data_h, m, h, r['Item'], r['Almox'], "", "", r['Qtd'], "", r['Desc']] 
+                         for _, r in self.dados_agrupados.iterrows()]
+                
+                sheet.append_rows(envio, value_input_option='USER_ENTERED')
+                messagebox.showinfo("Nuvem", "🚀 Relatório enviado com sucesso!")
+            except Exception as e: 
+                messagebox.showerror("Falha na Nuvem", f"O arquivo local foi gerado, mas a nuvem falhou: {e}")
 
-        # 2. Tentar Exportação Local (Sempre gera, exceto se você quiser criar um modo 'apenas nuvem')
+
+        # --- ARQUIVO LOCAL (Com 9 Colunas - SEM NOME para o Octa) ---
+        nome_arq = f"IMPORT_{m}_{h}_{datetime.now().strftime('%H%M%S')}.xlsx"
+        
+        # Criando apenas as 9 colunas que o Octa aceita
+        dados_locais = []
+        for _, r in self.dados_agrupados.iterrows():
+            dados_locais.append([
+                datetime.now().strftime('%d/%m/%Y'), m, h, r['Item'], r['Almox'], "", "", r['Qtd'], ""
+            ])
+            
+        df_local = pd.DataFrame(dados_locais, columns=[
+            'Data movimento', 'Cód. MI', 'Histórico', 'Cód. Item', 
+            'Almoxarifado', 'Almoxarifado transf.', 'Unidade Medida', 'Qtde', 'Valor'
+        ])
+        
+        df_local.to_excel(nome_arq, index=False)
+        messagebox.showinfo("Sucesso", f"Arquivo para o Octa gerado: {nome_arq}")
+
+
+    def testar_conexao(self):
         try:
-            nome_local = self.exportar_excel_local(campos['hist'], campos['mi'])
-            status_msg.append(f"✅ Arquivo local gerado: {nome_local}")
-        except Exception as e:
-            status_msg.append(f"❌ Erro Local: {str(e)}")
+            # 1. Limpa o ID (caso seja URL)
+            id_bruto = self.ent_sheet_id.get().strip()
+            id_limpo = self.extrair_id(id_bruto)
+            
+            # 2. Pega o JSON da configuração
+            if not self.config["cloud"]["creds_json"]:
+                raise ValueError("Você precisa carregar o arquivo JSON primeiro!")
+            
+            creds_dict = json.loads(self.config["cloud"]["creds_json"])
+            
+            # 3. Autenticação Direta (Método Moderno - Sem oauth2client)
+            client = gspread.service_account_from_dict(creds_dict)
+            
+            # 4. Tenta abrir a planilha
+            client.open_by_key(id_limpo)
+            
+            # 5. Sucesso!
+            messagebox.showinfo("Sucesso", "🚀 CONEXÃO ESTABELECIDA!\nO Google aceitou sua chave.")
+            self.btn_test_cloud.config(bg="#4CAF50", text="✅ CONECTADO")
+            
+            # Atualiza interface e salva
+            self.ent_sheet_id.delete(0, tk.END)
+            self.ent_sheet_id.insert(0, id_limpo)
+            self.config["cloud"]["spreadsheet_id"] = id_limpo
+            salvar_config(self.config)
 
-        messagebox.showinfo("Processamento Finalizado", "\n".join(status_msg))
+        except Exception as e:
+            messagebox.showerror("Erro de Conexão", f"O Google recusou o acesso.\n\nDetalhe: {e}")
+            self.btn_test_cloud.config(bg="#F44336", text="❌ FALHA NA CONEXÃO")
 
     def enviar_para_nuvem(self, hist, mi):
-        """Conecta ao Google Sheets usando o JSON embutido na config"""
-        if not gspread:
-            raise ImportError("Biblioteca gspread não encontrada. Instale com 'pip install gspread oauth2client'")
-
-        creds_str = self.config["cloud"]["creds_json"]
-        if not creds_str:
-            raise ValueError("O campo JSON de Credenciais está vazio!")
-
-        try:
-            creds_dict = json.loads(creds_str)
-            scope = ["https://google.com", "https://googleapis.com"]
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-            client = gspread.authorize(creds)
+        """Versão corrigida: envia os dados para o Google Sheets"""
+        if not self.config["cloud"]["creds_json"]:
+            raise ValueError("Credenciais JSON não encontradas!")
             
-            sheet = client.open_by_key(self.config["cloud"]["spreadsheet_id"])
-            worksheet = sheet.worksheet(self.config["cloud"]["worksheet_name"])
-            
-            data_hoje = datetime.now().strftime('%d/%m/%Y')
-            linhas_envio = [[data_hoje, mi, hist, r['Item'], r['Desc'], r['Almox'], r['Qtd']] 
-                            for _, r in self.dados_agrupados.iterrows()]
-            
-            worksheet.append_rows(linhas_envio, value_input_option='USER_ENTERED')
-
-        except json.JSONDecodeError:
-            raise ValueError("O conteúdo do JSON de credenciais está inválido (erro de digitação).")
-        except gspread.exceptions.SpreadsheetNotFound:
-            raise ValueError("ID da Planilha não encontrado. Verifique o ID e se compartilhou com o e-mail do JSON.")
-        except (gspread.exceptions.APIError, Exception) as e:
-            # Tratamento para falta de internet ou erro de servidor
-            erro_str = str(e).lower()
-            if "connection" in erro_str or "timeout" in erro_str:
-                raise ConnectionError("Falha de conexão: Verifique sua internet ou se o Google está bloqueado.")
-            else:
-                raise Exception(f"Erro inesperado na nuvem: {e}")
-
-    def exportar_excel_local(self, h, m):
-        """Gera o arquivo .xlsx no computador"""
-        h_limpo = "".join([c for c in h if c.isalnum() or c in (' ', '_', '-')]).strip()
-        m_limpo = "".join([c for c in m if c.isalnum() or c in (' ', '_', '-')]).strip()
-        nome_arq = f"IMPORT_{m_limpo}_{h_limpo}_{datetime.now().strftime('%H%M%S')}.xlsx"
+        creds_dict = json.load(self.config["cloud"]["creds_json"])
         
-        final_df = pd.DataFrame({
-            'Data movimento': [datetime.now()] * len(self.dados_agrupados),
-            'Cód. MI': m,
-            'Histórico': h,
-            'Cód. Item': self.dados_agrupados['Item'],
-            'Descrição': self.dados_agrupados['Desc'],
-            'Almoxarifado': self.dados_agrupados['Almox'],
-            'Qtde': self.dados_agrupados['Qtd']
-        })
-
-        with pd.ExcelWriter(nome_arq, engine='openpyxl') as writer:
-            final_df.to_excel(writer, index=False, sheet_name='Importacao')
-            ws = writer.sheets['Importacao']
-            for cell in ws['A']: cell.number_format = 'DD/MM/YYYY'
-            for cell in ws[1]: cell.alignment = Alignment(horizontal='center')
+        # Login moderno e estável
+        client = gspread.service_account_from_dict(creds_dict)
         
-        return nome_arq
+        id_plani = self.extrair_id(self.ent_sheet_id.get())
+        sheet = client.open_by_key(id_plani).worksheet(self.config["cloud"]["worksheet_name"])
+        
+        dt = datetime.now().strftime('%d/%m/%Y')
+        
+        # PREPARAÇÃO DOS DADOS (Ajustado: 'hist' e 'mi' agora batem com os nomes das variáveis)
+        envio = []
+        for _, r in self.dados_agrupados.iterrows():
+            linha = [
+                dt,          # A: Data
+                mi,          # B: Cód. MI
+                hist,        # C: Histórico
+                r['Item'],   # D: Cód. Item
+                r['Almox'],  # E: Almoxarifado
+                "",          # F: Almoxarifado transf. (Vazio)
+                "",          # G: Unidade Medida (Vazio)
+                r['Qtd'],    # H: Qtde
+                "",          # I: Valor (Vazio)
+                r['Desc']    # J: Nome (O relatório da nuvem tem o nome!)
+            ]
+            envio.append(linha)
+        
+        # Envia tudo de uma vez para ser rápido
+        sheet.append_rows(envio, value_input_option='USER_ENTERED')
+
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = OctalinkApp(root)
-    root.mainloop()
+    root = tk.Tk(); app = OctalinkApp(root); root.mainloop()
