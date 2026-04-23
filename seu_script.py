@@ -20,14 +20,16 @@ import os
 import json
 import re
 import pandas as pd
-from gspread.utils import ValueInputOption
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from datetime import datetime
 from openpyxl.styles import Alignment
 
 # Tenta importar gspread
-import gspread
+try:
+    import gspread
+except ImportError:
+    gspread = None
 
 # --- CONFIGURAÇÕES E BACKUP INTERNO ---
 B_ID = "1n0sBeEQaBfe-Onh0GRNNX1ftJH35Fk0hGz1l_ZwQSBY"
@@ -229,11 +231,6 @@ class OctalinkApp:
 
 
     def fluxo_final(self):
-        if self.dados_agrupados is None:
-            self.log("Erro: Nenhum dado processado para enviar.")
-            messagebox.showwarning("Aviso", "Processe os dados antes de enviar para a nuvem!")
-            return
-        
         h = self.ent_outro_hist.get().upper() if self.cb_hist.get() == "Outro..." else self.cb_hist.get()
         m = self.ent_outro_mi.get().upper() if self.cb_mi.get() == "Outro..." else self.cb_mi.get()
         id_p = self.extrair_id(self.ent_sheet_id.get())
@@ -269,19 +266,14 @@ class OctalinkApp:
         messagebox.showinfo("Sucesso", "Processamento concluído!")
 
     def enviar_para_nuvem(self, hist, mi, data_mov, id_p):
-        if self.dados_agrupados is None:
-            messagebox.showwarning("Aviso", "Não há dados agrupados para enviar!")
-            return
-
         try:
             self.log("Conectando..."); client = gspread.service_account_from_dict(json.loads(self.config["cloud"]["creds_json"]))
             sheet = client.open_by_key(id_p).worksheet(self.ent_sheet_name.get().strip())
             dados_n = sheet.get_all_values()
-            self.progress["maximum"] = len(self.dados_agrupados); decisao = None # type: ignore
+            self.progress["maximum"] = len(self.dados_agrupados); decisao = None
             for i, (_, r) in enumerate(self.dados_agrupados.iterrows()):
                 self.progress["value"] = i + 1; self.log(f"Sinc: {r['Item']}"); self.root.update()
                 idx_n = -1
-                qtd_at = 0
                 for ix, ln in enumerate(dados_n):
                     if len(ln)>3 and ln[0]==data_mov and ln[1]==mi and ln[2]==hist and ln[3]==r['Item']:
                         idx_n = ix + 1; qtd_at = int(ln[7]) if ln[7].isdigit() else 0; break
@@ -292,11 +284,7 @@ class OctalinkApp:
                         if d.aplicar_todos: decisao = res
                     else: res = decisao
                     if res == "somar": sheet.update_cell(idx_n, 8, qtd_at + int(r['Qtd']))
-                else: sheet.append_row(
-                            [data_mov, mi, hist, r['Item'], r['Almox'], "", "", r['Qtd'], "", r['Desc']], 
-                            value_input_option=ValueInputOption.user_entered  # <--- Use o Enum aqui
-                        )   
-
+                else: sheet.append_row([data_mov, mi, hist, r['Item'], r['Almox'], "", "", r['Qtd'], "", r['Desc']], value_input_option='USER_ENTERED')
             self.log("Nuvem OK!")
         except Exception as e: self.log(f"Erro Nuvem: {e}"); messagebox.showerror("Erro Nuvem", str(e))
 
@@ -321,4 +309,4 @@ if __name__ == "__main__":
         root.mainloop()
     except Exception as e:
         import ctypes
-        ctypes.windll.user32.MessageBoxW(0, f"Erro Fatal: {e}", "Erro Crítico", 0x10) # type: ignore
+        ctypes.windll.user32.MessageBoxW(0, f"Erro Fatal: {e}", "Erro Crítico", 0x10)
